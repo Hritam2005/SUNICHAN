@@ -1,37 +1,59 @@
-# To learn more about how to use Nix to configure your environment
-# see: https://developers.google.com/idx/guides/customize-idx-env
-{ pkgs, ... }: {
+{ pkgs, ... }:
+{
   # Which nixpkgs channel to use.
-  channel = "stable-24.05"; # or "unstable"
-  # Use https://search.nixos.org/packages to find packages
-  packages = [
-    pkgs.nodejs_20
-  ];
-  # Sets environment variables in the workspace
-  env = {};
+  channel = "stable-23.11"; # Or "unstable" or a specific release like "18.09".
+  # Use https://search.nixos.org/packages to find packages.
+  packages = [ pkgs.zip pkgs.nodejs_20 ];
+  # Sets environment variables in the workspace.
+  env = { };
+  # Defines commands that can be running in your workspace.
+  services = { };
+  # Defines ports that can be exposed in your workspace.
+  ports = { };
+  # Defines the entrypoint for your workspace.
+  entrypoint = "/nix/store/s0zz9rwhp96s73j50y6ifff13337nxfc-bash-5.2-p15/bin/bash";
+
   idx = {
-    # Search for the extensions you want on https://open-vsx.org/ and use "publisher.id"
+    # Search for extensions on the VSCode Marketplace (https://marketplace.visualstudio.com/)
+    # or the Open VSX Registry (https://open-vsx.org/).
     extensions = [
-      # "vscodevim.vim"
+      "vscode.git"
+      "vscode.github-pr"
     ];
+
     workspace = {
-      # Runs when a workspace is first created with this `dev.nix` file
+      # Runs when a workspace is started.
+      onStart = { 
+        npm-install = "npm install --no-cache --force";
+        # check-env = ". ./.env.example && [[ -z \"$VITE_GEMINI_API_KEY\" ]] && echo \"VITE_GEMINI_API_KEY is not set. Please set it in the .env file.\" || echo \"VITE_GEMINI_API_KEY is set.\"";
+      };
+
+      # Runs when a workspace is created.
       onCreate = {
-        npm-install = "npm ci --no-audit --prefer-offline --no-progress --timing";
-        # Open editors for the following files by default, if they exist:
-        default.openFiles = [ "src/App.tsx" "src/App.ts" "src/App.jsx" "src/App.js" ];
+        # Use this to install dependencies, download data, or other one-time setup steps.
+        # Example: 
+        #   - npm-install = "npm install"
       };
-      # To run something each time the workspace is (re)started, use the `onStart` hook
     };
-    # Enable previews and customize configuration
+
     previews = {
+      # Enables the web preview feature.
       enable = true;
-      previews = {
-        web = {
-          command = ["npm" "run" "dev" "--" "--port" "$PORT" "--host" "0.0.0.0"];
-          manager = "web";
-        };
-      };
+      # Previews a specific port of a workspace and optionally specifies how to handle it.
+      previews = [
+        {
+          # The port to preview.
+          port = 3000;
+          # The name to show for the preview.
+          name = "Web";
+          # How to handle the preview.
+          # - "open": Opens the preview in a new tab.
+          # - "embed": Embeds the preview in the IDE.
+          # - "ignore": Does not show the preview.
+          # Default: "open"
+          mode = "embed";
+        }
+      ];
     };
   };
 }
