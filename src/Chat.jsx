@@ -134,27 +134,27 @@ function Chat({ currentConversationId, onSelectConversation }) {
     } catch (err) {
       console.error('Error sending message or getting response:', err);
       
-      let diagnosticInfo = '';
-      try {
-        // Try to fetch the list of available models to see what the API key actually has access to
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${GEMINI_API_KEY}`);
-        if (response.ok) {
-          const data = await response.json();
-          const modelNames = data.models.map(m => m.name.replace('models/', '')).filter(n => n.includes('gemini'));
-          diagnosticInfo = `\n\nAvailable models for your key: ${modelNames.join(', ')}`;
-        } else {
-          diagnosticInfo = `\n\nDiagnostic fetch failed: ${response.status} ${response.statusText}`;
-        }
-      } catch (fetchErr) {
-        diagnosticInfo = `\n\nDiagnostic fetch error: ${fetchErr.message}`;
+      let userFriendlyMessage = "Sorry, something went wrong. Please try again later.";
+      
+      // Check for common API token or quota errors
+      const errorMsgLower = (err.message || "").toLowerCase();
+      if (errorMsgLower.includes('429') || errorMsgLower.includes('quota') || errorMsgLower.includes('exhausted')) {
+        userFriendlyMessage = "API token limit exceeded. Please wait a moment and try again, or check your Gemini API quota.";
+      } else if (errorMsgLower.includes('api key') || errorMsgLower.includes('unauthorized')) {
+        userFriendlyMessage = "API token error. Please check your Gemini API key configuration.";
       }
 
       const errorMessage = {
-        text: `Sorry, something went wrong. Error: ${err.message}${diagnosticInfo}`,
+        text: userFriendlyMessage,
         sender: 'bot',
         createdAt: serverTimestamp(),
       };
-      await addDoc(messagesRef, errorMessage);
+      
+      try {
+        await addDoc(messagesRef, errorMessage);
+      } catch (dbErr) {
+        console.error('Error saving error message to db:', dbErr);
+      }
       
     } finally {
       setLoading(false);
