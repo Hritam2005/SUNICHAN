@@ -139,9 +139,9 @@ function Chat({ currentConversationId, onSelectConversation }) {
       // Check for common API token or quota errors
       const errorMsgLower = (err.message || "").toLowerCase();
       if (errorMsgLower.includes('429') || errorMsgLower.includes('quota') || errorMsgLower.includes('exhausted')) {
-        userFriendlyMessage = "API token limit exceeded. Please wait a moment and try again, or check your Gemini API quota.";
+        userFriendlyMessage = "The AI service is currently unavailable. Please wait a little while until it is fixed and try again.";
       } else if (errorMsgLower.includes('api key') || errorMsgLower.includes('unauthorized')) {
-        userFriendlyMessage = "API token error. Please check your Gemini API key configuration.";
+        userFriendlyMessage = "The AI service is currently undergoing maintenance. Please try again later.";
       }
 
       const errorMessage = {
