@@ -19,7 +19,7 @@ if (GEMINI_API_KEY) {
   }
 }
 
-function Chat({ currentConversationId, onSelectConversation }) {
+function Chat({ currentConversationId, onSelectConversation, onApiStatusChange }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -70,6 +70,7 @@ function Chat({ currentConversationId, onSelectConversation }) {
     
     if (!initialModel) {
       setError('Server configuration error: AI model is not initialized.');
+      if (onApiStatusChange) onApiStatusChange('exhausted');
       return;
     }
 
@@ -130,6 +131,7 @@ function Chat({ currentConversationId, onSelectConversation }) {
       };
 
       await addDoc(messagesRef, botMessage);
+      if (onApiStatusChange) onApiStatusChange('ok');
 
     } catch (err) {
       console.error('Error sending message or getting response:', err);
@@ -140,8 +142,10 @@ function Chat({ currentConversationId, onSelectConversation }) {
       const errorMsgLower = (err.message || "").toLowerCase();
       if (errorMsgLower.includes('429') || errorMsgLower.includes('quota') || errorMsgLower.includes('exhausted')) {
         userFriendlyMessage = "The AI service is currently unavailable. Please wait a little while until it is fixed and try again.";
+        if (onApiStatusChange) onApiStatusChange('exhausted');
       } else if (errorMsgLower.includes('api key') || errorMsgLower.includes('unauthorized')) {
         userFriendlyMessage = "The AI service is currently undergoing maintenance. Please try again later.";
+        if (onApiStatusChange) onApiStatusChange('exhausted');
       }
 
       const errorMessage = {
