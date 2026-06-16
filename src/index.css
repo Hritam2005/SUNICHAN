@@ -13,29 +13,186 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Extraordinary Animated Fluid Background */
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
+  padding: 0;
   min-height: 100vh;
-  position: relative;
+  background: #000;
+  overflow-x: hidden;
+  font-family: 'Inter', sans-serif;
+  color: white;
 }
 
-body::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800"><g fill-opacity="0.22"><circle fill="%230E99AC" cx="400" cy="400" r="600"/><circle fill="%2318284A" cx="400" cy="400" r="500"/><circle fill="%23051130" cx="400" cy="400" r="300"/><circle fill="%23000018" cx="400" cy="400" r="200"/><circle fill="%23000000" cx="400" cy="400" r="100"/></g></svg>');
-  background-size: cover;
-  opacity: 0.1;
-  z-index: -1;
+/* Base background for the whole app */
+#root {
+  min-height: 100vh;
+  background: 
+    radial-gradient(circle at 15% 50%, rgba(59, 130, 246, 0.25), transparent 50%),
+    radial-gradient(circle at 85% 30%, rgba(139, 92, 246, 0.25), transparent 50%),
+    radial-gradient(circle at 50% 80%, rgba(16, 185, 129, 0.15), transparent 50%),
+    linear-gradient(135deg, #0f111a 0%, #000000 100%);
+  background-size: 200% 200%;
+  animation: fluidGradient 20s ease-in-out infinite alternate;
+  background-attachment: fixed;
 }
 
-@keyframes fadeIn {
+@keyframes fluidGradient {
+  0% { background-position: 0% 0%; }
+  50% { background-position: 100% 100%; }
+  100% { background-position: 0% 100%; }
+}
+
+/* Apple Liquid Glass Utility Classes */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.03) !important;
+  backdrop-filter: blur(30px) saturate(200%) !important;
+  -webkit-backdrop-filter: blur(30px) saturate(200%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2) !important;
+}
+
+.app-shell-glass {
+  background: transparent !important;
+}
+
+.glass-header {
+  background: rgba(255, 255, 255, 0.02) !important;
+  backdrop-filter: blur(24px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+.glass-navbar {
+  background: rgba(255, 255, 255, 0.02) !important;
+  backdrop-filter: blur(24px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+.sidebar-glass {
+  background: transparent;
+}
+
+.sidebar-header-glass {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.sidebar-footer-glass {
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.glass-nav-link {
+  color: white !important;
+  background: transparent !important;
+  transition: all 0.3s ease;
+}
+.glass-nav-link:hover, .glass-nav-link[data-active] {
+  background: rgba(255, 255, 255, 0.1) !important;
+  backdrop-filter: blur(10px);
+}
+
+.chat-container-glass {
+  background: rgba(255, 255, 255, 0.03) !important;
+  backdrop-filter: blur(40px) saturate(200%) !important;
+  -webkit-backdrop-filter: blur(40px) saturate(200%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 20px !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.1) !important;
+  overflow: hidden;
+}
+
+.chat-input-glass {
+  background: rgba(0, 0, 0, 0.1) !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.glass-input {
+  background: rgba(255, 255, 255, 0.07) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  color: white !important;
+  backdrop-filter: blur(10px);
+}
+.glass-input:focus {
+  border-color: rgba(255, 255, 255, 0.3) !important;
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+.glass-button {
+  transition: all 0.3s ease !important;
+  border: 1px solid rgba(255,255,255,0.1) !important;
+}
+.glass-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2) !important;
+}
+
+.primary-glass-btn {
+  background: linear-gradient(135deg, rgba(20, 150, 220, 0.8), rgba(10, 100, 200, 0.8)) !important;
+  backdrop-filter: blur(10px) !important;
+}
+.primary-glass-btn:hover {
+  background: linear-gradient(135deg, rgba(30, 170, 240, 0.9), rgba(20, 120, 220, 0.9)) !important;
+}
+
+.outline-glass-btn {
+  background: rgba(255, 255, 255, 0.05) !important;
+  color: white !important;
+  backdrop-filter: blur(10px) !important;
+}
+.outline-glass-btn:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+.glass-icon-btn {
+  background: rgba(255, 255, 255, 0.05) !important;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+.glass-icon-btn:hover {
+  background: rgba(255, 255, 255, 0.15) !important;
+}
+
+.glass-avatar {
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.1) !important;
+  backdrop-filter: blur(8px);
+}
+
+.chat-bubble-user {
+  background: linear-gradient(135deg, rgba(20, 140, 220, 0.75), rgba(10, 90, 180, 0.75)) !important;
+  backdrop-filter: blur(12px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2) !important;
+}
+
+.chat-bubble-bot {
+  background: rgba(255, 255, 255, 0.06) !important;
+  backdrop-filter: blur(24px) saturate(180%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Typography styles */
+.liquid-glass-text {
+  background: linear-gradient(180deg, #ffffff 0%, rgba(200, 230, 255, 0.9) 42%, rgba(100, 180, 255, 0.6) 54%, #ffffff 85%, rgba(255, 255, 255, 0.95) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4)) drop-shadow(0 0 12px rgba(100,180,255,0.3));
+}
+
+.liquid-glass-text-subtle {
+  background: linear-gradient(180deg, #ffffff 0%, rgba(220, 240, 255, 0.8) 45%, rgba(150, 200, 255, 0.4) 55%, rgba(255, 255, 255, 0.9) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3)) drop-shadow(0 0 6px rgba(100,180,255,0.15));
+}
+
+/* Animations */
+@keyframes messageEnter {
   from {
     opacity: 0;
     transform: translateY(10px);

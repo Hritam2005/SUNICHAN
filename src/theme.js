@@ -3,39 +3,53 @@ import { createTheme } from '@mantine/core';
 export const theme = createTheme({
   colors: {
     'ocean-blue': [
-      '#7AD1DD',
-      '#5FCCDB',
-      '#44CADC',
-      '#2AC9DE',
-      '#1AC2D9',
-      '#11B7CD',
-      '#09ADC3',
-      '#0E99AC',
-      '#128797',
-      '#147885'
+      '#e0f2fe',
+      '#bae6fd',
+      '#7dd3fc',
+      '#38bdf8',
+      '#0ea5e9',
+      '#0284c7',
+      '#0369a1',
+      '#075985',
+      '#0c4a6e',
+      '#082f49'
     ],
     'deep-space': [
-      '#E8E9EC',
-      '#C5C8D0',
-      '#A2A8B5',
-      '#7F889A',
-      '#5C687F',
-      '#3A4864',
-      '#18284A',
-      '#051130',
-      '#000018',
-      '#000000'
+      '#f8fafc',
+      '#f1f5f9',
+      '#e2e8f0',
+      '#cbd5e1',
+      '#94a3b8',
+      '#64748b',
+      '#475569',
+      '#334155',
+      '#1e293b',
+      '#0f172a'
     ]
   },
   primaryColor: 'ocean-blue',
   defaultGradient: {
-    from: 'orange',
-    to: 'red',
+    from: 'ocean-blue',
+    to: 'cyan',
     deg: 45,
   },
   fontFamily: 'Inter, sans-serif',
   headings: {
-    fontFamily: 'Roboto, sans-serif',
+    fontFamily: 'Inter, sans-serif',
     fontWeight: '700',
   },
+  components: {
+    AppShell: {
+      styles: {
+        root: {
+          backgroundColor: 'transparent',
+        }
+      }
+    },
+    Paper: {
+      defaultProps: {
+        radius: 'md',
+      }
+    }
+  }
 });

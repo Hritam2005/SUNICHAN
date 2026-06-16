@@ -1,28 +1,32 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { db } from './firebase';
+import { db, auth } from './firebase';
 import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp } from 'firebase/firestore';
-import { ActionIcon, Alert, Avatar, Box, Group, Paper, ScrollArea, Text, TextInput, useMantineTheme } from '@mantine/core';
+import { ActionIcon, Alert, Avatar, Box, Group, Paper, ScrollArea, Text, TextInput, Title, Center, Button } from '@mantine/core';
 import { IconAlertCircle, IconArrowRight, IconUser, IconRobot } from '@tabler/icons-react';
 
 // Get the API key from environment variables
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
-let genAI;
-let model;
+let initialGenAI = null;
+let initialModel = null;
 
-// Initialize the Generative AI client only if the API key is available
 if (GEMINI_API_KEY) {
-  genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-  model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+  try {
+    initialGenAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+    initialModel = initialGenAI.getGenerativeModel({ model: 'gemini-flash-latest' });
+  } catch (e) {
+    console.error("Failed to initialize Gemini with env key", e);
+  }
 }
 
-function Chat() {
-  const theme = useMantineTheme();
+function Chat({ currentConversationId, onSelectConversation }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const viewport = useRef(null);
+  
+
 
   // Function to scroll to the bottom of the chat
   const scrollToBottom = () => {
@@ -31,14 +35,20 @@ function Chat() {
     }
   };
 
+
+
   // Set up a listener for real-time chat updates from Firestore
   useEffect(() => {
-    if (!GEMINI_API_KEY) {
-      setError('Gemini API key is not configured. Please set VITE_GEMINI_API_KEY in your .env file.');
+    if (!currentConversationId || !auth.currentUser) {
+      setMessages([]);
       return;
     }
 
-    const q = query(collection(db, 'chats'), orderBy('createdAt'));
+    const q = query(
+      collection(db, 'users', auth.currentUser.uid, 'conversations', currentConversationId, 'messages'),
+      orderBy('createdAt')
+    );
+    
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
       const msgs = querySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
       setMessages(msgs);
@@ -48,14 +58,20 @@ function Chat() {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [currentConversationId]);
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages, loading]);
 
   const sendMessage = async () => {
     if (input.trim() === '' || loading) return;
+    if (!auth.currentUser) return;
+    
+    if (!initialModel) {
+      setError('Server configuration error: AI model is not initialized.');
+      return;
+    }
 
     const userMessage = {
       text: input,
@@ -64,12 +80,46 @@ function Chat() {
     };
 
     setLoading(true);
+    const currentInput = input;
     setInput('');
+    setError(null);
+
+    let convId = currentConversationId;
+    if (!convId) {
+      try {
+        const newConvRef = await addDoc(collection(db, 'users', auth.currentUser.uid, 'conversations'), {
+          title: currentInput.substring(0, 30) + (currentInput.length > 30 ? '...' : ''),
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+        convId = newConvRef.id;
+        if (onSelectConversation) {
+          onSelectConversation(convId);
+        }
+      } catch (err) {
+        console.error('Error creating new conversation:', err);
+        setError('Could not create a new conversation.');
+        setLoading(false);
+        return;
+      }
+    }
+
+    const messagesRef = collection(db, 'users', auth.currentUser.uid, 'conversations', convId, 'messages');
 
     try {
-      await addDoc(collection(db, 'chats'), userMessage);
+      await addDoc(messagesRef, userMessage);
 
-      const result = await model.generateContent(input);
+      // Format the chat history for context
+      const promptContext = messages
+        .filter(m => m.text) // Ensure no empty messages
+        .map(m => `${m.sender === 'user' ? 'User' : 'AI'}: ${m.text}`)
+        .join('\n');
+        
+      const fullPrompt = promptContext.length > 0 
+        ? `Here is the conversation history:\n${promptContext}\n\nUser: ${currentInput}\nAI:` 
+        : currentInput;
+
+      const result = await initialModel.generateContent(fullPrompt);
       const response = await result.response;
       const text = await response.text();
 
@@ -79,86 +129,130 @@ function Chat() {
         createdAt: serverTimestamp(),
       };
 
-      await addDoc(collection(db, 'chats'), botMessage);
+      await addDoc(messagesRef, botMessage);
 
     } catch (err) {
       console.error('Error sending message or getting response:', err);
+      
+      let diagnosticInfo = '';
+      try {
+        // Try to fetch the list of available models to see what the API key actually has access to
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${GEMINI_API_KEY}`);
+        if (response.ok) {
+          const data = await response.json();
+          const modelNames = data.models.map(m => m.name.replace('models/', '')).filter(n => n.includes('gemini'));
+          diagnosticInfo = `\n\nAvailable models for your key: ${modelNames.join(', ')}`;
+        } else {
+          diagnosticInfo = `\n\nDiagnostic fetch failed: ${response.status} ${response.statusText}`;
+        }
+      } catch (fetchErr) {
+        diagnosticInfo = `\n\nDiagnostic fetch error: ${fetchErr.message}`;
+      }
+
       const errorMessage = {
-        text: `Sorry, something went wrong. Error: ${err.message}`,
+        text: `Sorry, something went wrong. Error: ${err.message}${diagnosticInfo}`,
         sender: 'bot',
         createdAt: serverTimestamp(),
       };
-      await addDoc(collection(db, 'chats'), errorMessage);
+      await addDoc(messagesRef, errorMessage);
+      
     } finally {
       setLoading(false);
     }
   };
 
-  if (error) {
-    return (
-      <Alert icon={<IconAlertCircle size="1rem" />} title="Error" color="red" radius="md">
-        {error}
-      </Alert>
-    );
-  }
+
 
   return (
-    <Box
-      style={{
-        height: 'calc(100vh - 100px)',
-        display: 'flex',
-        flexDirection: 'column',
-        maxWidth: '900px',
-        margin: '0 auto',
-        backgroundColor: theme.colors['deep-space'][8],
-        borderRadius: theme.radius.md,
-        boxShadow: theme.shadows.xl,
-      }}
-    >
-      <ScrollArea style={{ flexGrow: 1 }} viewportRef={viewport} p="lg">
-        {messages.map((msg, index) => (
-          <Box key={msg.id} className="message-enter">
-            <Group gap="sm" align="flex-start" wrap="nowrap" style={{ flexDirection: msg.sender === 'user' ? 'row-reverse' : 'row' }}>
-              <Avatar
-                size="lg"
-                radius="xl"
-                color={msg.sender === 'user' ? theme.primaryColor : 'gray'}
-              >
-                {msg.sender === 'user' ? <IconUser /> : <IconRobot />}
-              </Avatar>
-              <Paper
-                shadow="lg"
-                p="md"
-                radius="xl"
-                style={{
-                  background: msg.sender === 'user' ? `linear-gradient(45deg, ${theme.colors['ocean-blue'][5]}, ${theme.colors['ocean-blue'][3]})` : theme.colors['deep-space'][6],
-                  color: 'white',
-                  maxWidth: '85%',
-                }}
-              >
-                <Text>{msg.text}</Text>
-              </Paper>
-            </Group>
-          </Box>
-        ))}
-        {loading && <Text size="sm" c="dimmed">AI is thinking...</Text>}
-      </ScrollArea>
-      <Group p="lg" gap="md">
-        <TextInput
-          style={{ flexGrow: 1 }}
-          placeholder="Message OCG AI..."
-          value={input}
-          onChange={(event) => setInput(event.currentTarget.value)}
-          onKeyPress={(event) => event.key === 'Enter' && sendMessage()}
-          disabled={loading}
-          radius="xl"
-          size="lg"
-        />
-        <ActionIcon variant="gradient" gradient={{ from: 'ocean-blue', to: 'cyan' }} size="xl" radius="xl" onClick={sendMessage} loading={loading}>
-          <IconArrowRight />
-        </ActionIcon>
-      </Group>
-    </Box>
+    <>
+
+
+      <Box
+        className="chat-container-glass"
+        style={{
+          height: 'calc(100vh - 100px)',
+          display: 'flex',
+          flexDirection: 'column',
+          maxWidth: '900px',
+          margin: '0 auto',
+        }}
+      >
+        {error && (
+          <Alert icon={<IconAlertCircle size="1rem" />} title="Notice" color="red" radius="md" m="md" style={{ background: 'rgba(250, 82, 82, 0.1)', backdropFilter: 'blur(10px)' }}>
+            {error}
+          </Alert>
+        )}
+        <ScrollArea style={{ flexGrow: 1 }} viewportRef={viewport} p="lg">
+          {messages.length === 0 && !loading && (
+            <Center style={{ height: '100%' }}>
+              <Text c="dimmed">This is the start of your conversation.</Text>
+            </Center>
+          )}
+          {messages.map((msg, index) => (
+            <Box key={msg.id} className="message-enter" mb="md">
+              <Group gap="sm" align="flex-end" wrap="nowrap" style={{ flexDirection: msg.sender === 'user' ? 'row-reverse' : 'row' }}>
+                <Avatar
+                  size="md"
+                  radius="xl"
+                  color={msg.sender === 'user' ? 'ocean-blue' : 'gray'}
+                  className="glass-avatar"
+                >
+                  {msg.sender === 'user' ? <IconUser size="1.2rem"/> : <IconRobot size="1.2rem"/>}
+                </Avatar>
+                <Paper
+                  className={msg.sender === 'user' ? 'chat-bubble-user' : 'chat-bubble-bot'}
+                  p="md"
+                  radius="xl"
+                  style={{
+                    color: 'white',
+                    maxWidth: '85%',
+                    borderBottomRightRadius: msg.sender === 'user' ? 4 : 'xl',
+                    borderBottomLeftRadius: msg.sender === 'bot' ? 4 : 'xl',
+                  }}
+                >
+                  <Text size="sm">{msg.text}</Text>
+                </Paper>
+              </Group>
+            </Box>
+          ))}
+          {loading && (
+            <Box className="message-enter" mb="md">
+               <Group gap="sm" align="flex-end" wrap="nowrap">
+                 <Avatar size="md" radius="xl" color="gray" className="glass-avatar"><IconRobot size="1.2rem"/></Avatar>
+                 <Paper className="chat-bubble-bot" p="md" radius="xl" style={{ borderBottomLeftRadius: 4 }}>
+                   <Text size="sm" className="typing-indicator">...</Text>
+                 </Paper>
+               </Group>
+            </Box>
+          )}
+        </ScrollArea>
+        <Group p="md" gap="sm" className="chat-input-glass">
+
+          <TextInput
+            style={{ flexGrow: 1 }}
+            placeholder="Message OCG AI..."
+            value={input}
+            onChange={(event) => setInput(event.currentTarget.value)}
+            onKeyPress={(event) => event.key === 'Enter' && sendMessage()}
+            disabled={loading}
+            radius="xl"
+            size="md"
+            classNames={{ input: 'glass-input' }}
+          />
+          <ActionIcon 
+            variant="gradient" 
+            gradient={{ from: 'ocean-blue', to: 'cyan' }} 
+            size="lg" 
+            radius="xl" 
+            onClick={sendMessage} 
+            loading={loading}
+            className="glass-send-btn"
+          >
+            <IconArrowRight size="1.2rem" />
+          </ActionIcon>
+        </Group>
+      </Box>
+    </>
   );
 }
 
