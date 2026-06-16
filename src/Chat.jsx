@@ -5,19 +5,31 @@ import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp } from 
 import { ActionIcon, Alert, Avatar, Box, Group, Paper, ScrollArea, Text, TextInput, Title, Center, Button } from '@mantine/core';
 import { IconAlertCircle, IconArrowRight, IconUser, IconRobot } from '@tabler/icons-react';
 
-// Get the API key from environment variables
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
-let initialGenAI = null;
-let initialModel = null;
+// Retrieve multiple keys from environment variables.
+// Use VITE_GEMINI_API_KEYS="key1,key2" or fallback to the single key
+const apiKeysString = import.meta.env.VITE_GEMINI_API_KEYS || import.meta.env.VITE_GEMINI_API_KEY || '';
+const API_KEYS = apiKeysString.split(',').map(k => k.trim()).filter(k => k);
 
-if (GEMINI_API_KEY) {
-  try {
-    initialGenAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-    initialModel = initialGenAI.getGenerativeModel({ model: 'gemini-flash-latest' });
-  } catch (e) {
-    console.error("Failed to initialize Gemini with env key", e);
+let currentKeyIndex = 0;
+let currentGenAI = null;
+let currentModel = null;
+
+function initModel(index) {
+  if (API_KEYS.length > 0 && index < API_KEYS.length) {
+    try {
+      currentGenAI = new GoogleGenerativeAI(API_KEYS[index]);
+      currentModel = currentGenAI.getGenerativeModel({ model: 'gemini-flash-latest' });
+      return true;
+    } catch (e) {
+      console.error(`Failed to initialize Gemini with key at index ${index}`, e);
+      return false;
+    }
   }
+  return false;
 }
+
+// Initialize with the first key
+initModel(currentKeyIndex);
 
 function Chat({ currentConversationId, onSelectConversation, onApiStatusChange }) {
   const [messages, setMessages] = useState([]);
@@ -68,8 +80,8 @@ function Chat({ currentConversationId, onSelectConversation, onApiStatusChange }
     if (input.trim() === '' || loading) return;
     if (!auth.currentUser) return;
     
-    if (!initialModel) {
-      setError('Server configuration error: AI model is not initialized.');
+    if (!currentModel) {
+      setError('Server configuration error: AI model is not initialized. Please check your API keys.');
       if (onApiStatusChange) onApiStatusChange('exhausted');
       return;
     }
@@ -120,9 +132,42 @@ function Chat({ currentConversationId, onSelectConversation, onApiStatusChange }
         ? `Here is the conversation history:\n${promptContext}\n\nUser: ${currentInput}\nAI:` 
         : currentInput;
 
-      const result = await initialModel.generateContent(fullPrompt);
-      const response = await result.response;
-      const text = await response.text();
+      let result;
+      let response;
+      let text;
+      let success = false;
+      let lastError = null;
+      
+      // Try to generate content, fallback to next key if quota exceeded
+      while (!success && currentKeyIndex < API_KEYS.length) {
+        try {
+          if (!currentModel) throw new Error('Model not initialized');
+          
+          result = await currentModel.generateContent(fullPrompt);
+          response = await result.response;
+          text = await response.text();
+          success = true;
+        } catch (err) {
+          lastError = err;
+          const errorMsgLower = (err.message || "").toLowerCase();
+          
+          // If the error is a 429 quota/limit error, try the next key
+          if (errorMsgLower.includes('429') || errorMsgLower.includes('quota') || errorMsgLower.includes('exhausted')) {
+            console.warn(`API key at index ${currentKeyIndex} exhausted. Switching to next key...`);
+            currentKeyIndex++;
+            const initialized = initModel(currentKeyIndex);
+            if (!initialized) {
+               break; // Stop if there are no more keys available
+            }
+          } else {
+            throw err; // Re-throw non-quota errors immediately
+          }
+        }
+      }
+
+      if (!success) {
+         throw lastError || new Error('All API keys exhausted or failed.');
+      }
 
       const botMessage = {
         text,
