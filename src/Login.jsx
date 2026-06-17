@@ -16,13 +16,28 @@ function Login() {
     setError('');
     setLoading(true);
     try {
+      const cleanEmail = email.trim();
       if (isSignUp) {
-        await createUserWithEmailAndPassword(auth, email, password);
+        await createUserWithEmailAndPassword(auth, cleanEmail, password);
       } else {
-        await signInWithEmailAndPassword(auth, email, password);
+        await signInWithEmailAndPassword(auth, cleanEmail, password);
       }
     } catch (err) {
-      setError(err.message);
+      console.error("Auth error:", err.code, err.message);
+      if (err.code === 'auth/invalid-credential') {
+        setError(isSignUp 
+          ? 'Invalid credentials provided.' 
+          : 'Incorrect email or password. If you are a new user, please click "Sign Up" below.');
+      } else if (err.code === 'auth/email-already-in-use') {
+        setError('This email is already registered. Please sign in instead.');
+      } else if (err.code === 'auth/weak-password') {
+        setError('Password is too weak. It should be at least 6 characters.');
+      } else if (err.code === 'auth/invalid-email') {
+        setError('Please enter a valid email address.');
+      } else {
+        // Fallback to the default firebase error message but format it a bit nicer
+        setError(err.message.replace('Firebase: ', ''));
+      }
     } finally {
       setLoading(false);
     }

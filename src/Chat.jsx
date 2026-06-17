@@ -237,33 +237,48 @@ function Chat({ currentConversationId, onSelectConversation, onApiStatusChange }
               <Text c="dimmed">This is the start of your conversation.</Text>
             </Center>
           )}
-          {messages.map((msg, index) => (
-            <Box key={msg.id} className="message-enter" mb="md">
-              <Group gap="sm" align="flex-end" wrap="nowrap" style={{ flexDirection: msg.sender === 'user' ? 'row-reverse' : 'row' }}>
-                <Avatar
-                  size="md"
-                  radius="xl"
-                  color={msg.sender === 'user' ? 'ocean-blue' : 'gray'}
-                  className="glass-avatar"
-                >
-                  {msg.sender === 'user' ? <IconUser size="1.2rem"/> : <IconRobot size="1.2rem"/>}
-                </Avatar>
-                <Paper
-                  className={msg.sender === 'user' ? 'chat-bubble-user' : 'chat-bubble-bot'}
-                  p="md"
-                  radius="xl"
-                  style={{
-                    color: 'white',
-                    maxWidth: '85%',
-                    borderBottomRightRadius: msg.sender === 'user' ? 4 : 'xl',
-                    borderBottomLeftRadius: msg.sender === 'bot' ? 4 : 'xl',
-                  }}
-                >
-                  <Text size="sm">{msg.text}</Text>
-                </Paper>
-              </Group>
-            </Box>
-          ))}
+          {messages.map((msg, index) => {
+            const formatTime = (timestamp) => {
+              if (!timestamp) return '';
+              try {
+                const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+                return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+              } catch (e) {
+                return '';
+              }
+            };
+            return (
+              <Box key={msg.id} className="message-enter" mb="md">
+                <Group gap="sm" align="flex-end" wrap="nowrap" style={{ flexDirection: msg.sender === 'user' ? 'row-reverse' : 'row' }}>
+                  <Avatar
+                    size="md"
+                    radius="xl"
+                    color={msg.sender === 'user' ? 'ocean-blue' : 'gray'}
+                    className="glass-avatar"
+                  >
+                    {msg.sender === 'user' ? <IconUser size="1.2rem"/> : <IconRobot size="1.2rem"/>}
+                  </Avatar>
+                  <Box style={{ maxWidth: '85%' }}>
+                    <Paper
+                      className={msg.sender === 'user' ? 'chat-bubble-user' : 'chat-bubble-bot'}
+                      p="md"
+                      radius="xl"
+                      style={{
+                        color: 'white',
+                        borderBottomRightRadius: msg.sender === 'user' ? 4 : 'xl',
+                        borderBottomLeftRadius: msg.sender === 'bot' ? 4 : 'xl',
+                      }}
+                    >
+                      <Text size="sm">{msg.text}</Text>
+                    </Paper>
+                    <Text size="xs" c="dimmed" ta={msg.sender === 'user' ? 'right' : 'left'} mt={4} ml={4} mr={4} style={{ opacity: 0.8 }}>
+                      {formatTime(msg.createdAt)}
+                    </Text>
+                  </Box>
+                </Group>
+              </Box>
+            );
+          })}
           {loading && (
             <Box className="message-enter" mb="md">
                <Group gap="sm" align="flex-end" wrap="nowrap">
