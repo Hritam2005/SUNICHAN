@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { auth, googleProvider } from './firebase';
-import { signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { Box, Button, Center, Paper, PasswordInput, Text, TextInput, Title, Stack, Group, Divider } from '@mantine/core';
 import { IconBrandGoogle, IconMail } from '@tabler/icons-react';
 
@@ -37,6 +37,30 @@ function Login() {
       } else {
         // Fallback to the default firebase error message but format it a bit nicer
         setError(err.message.replace('Firebase: ', ''));
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!email) {
+      setError('Please enter your email address in the Email field first.');
+      return;
+    }
+    setLoading(true);
+    setError('');
+    try {
+      await sendPasswordResetEmail(auth, email.trim());
+      setError('Password reset email sent! Check your inbox (and spam folder).');
+    } catch (err) {
+      console.error("Reset error:", err.code, err.message);
+      if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
+         setError('No account found with this email. Please sign up first.');
+      } else if (err.code === 'auth/invalid-email') {
+         setError('Please enter a valid email address.');
+      } else {
+         setError(err.message.replace('Firebase: ', ''));
       }
     } finally {
       setLoading(false);
@@ -115,6 +139,19 @@ function Login() {
               </Button>
             </Stack>
           </form>
+
+          {!isSignUp && (
+            <Center mt="sm">
+              <Text
+                component="span"
+                size="sm"
+                style={{ cursor: 'pointer', color: 'var(--mantine-color-ocean-blue-4)', textDecoration: 'underline' }}
+                onClick={handleResetPassword}
+              >
+                Forgot Password?
+              </Text>
+            </Center>
+          )}
 
           <Divider label="Or continue with" labelPosition="center" my="md" />
 
